@@ -1,5 +1,5 @@
-module github.com/htojiddinov77-png/GolangArticles
+module github.com/htojiddinov77-png/Articles
 
 go 1.24.4
 
-require github.com/go-chi/chi/v5 v5.2.3 // indirect
+require github.com/go-chi/chi/v5 v5.2.3
