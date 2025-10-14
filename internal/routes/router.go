@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/htojiddinov77-png/GolangArticles/internal/app"
+	"github.com/htojiddinov77-png/Articles/internal/app"
 )
 
 func SetupRoutes(app *app.Application) *chi.Mux {

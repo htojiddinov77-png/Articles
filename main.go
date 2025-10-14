@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/htojiddinov77-png/GolangArticles/internal/app"
-	"github.com/htojiddinov77-png/GolangArticles/internal/routes"
+	"github.com/htojiddinov77-png/Articles/internal/app"
+	"github.com/htojiddinov77-png/Articles/internal/routes"
 )
 
 func main() {
@@ -19,6 +19,9 @@ func main() {
 	if err != nil{
 		panic(err)
 	}
+
+	defer app.DB.Close()
+	
 	r := routes.SetupRoutes(app)
 
 	server := &http.Server{
