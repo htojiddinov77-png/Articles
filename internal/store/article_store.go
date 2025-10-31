@@ -1,16 +1,19 @@
 package store
 
-import "database/sql"
+import (
+	"database/sql"
+	"time"
+)
 
 type Article struct {
-	ID          int         `json:"id`
+	ID          int         `json:"id"`
 	Title       string      `json:"title"`
 	Description string      `json:"description"`
 	Image       string      `json:"image"`
 	AuthorId    int         `json:"author_id"`
 	Paragraphs  []Paragraph `json:"paragraphs"`
-	CreatedAt   string      `json:"created_at"`
-	Updatedat   string      `json:"updated_at"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
 type Paragraph struct {
@@ -18,8 +21,8 @@ type Paragraph struct {
 	Headline   string `json:"headline"`
 	Body       string `json:"body"`
 	OrderIndex int    `json:"order_index"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type PostgresArticleStore struct {
@@ -27,7 +30,7 @@ type PostgresArticleStore struct {
 }
 
 func NewPosgresArticleStore(db *sql.DB) *PostgresArticleStore {
-	return &PostgresArticleStore{}
+	return &PostgresArticleStore{db: db}
 }
 
 type ArticleStore interface {
@@ -79,7 +82,7 @@ func (pg *PostgresArticleStore) GetArticleById(id int64) (*Article, error) {
 	SELECT id, title, description,image, author_id,created_at, updated_at
 	FROM articles WHERE id = $1`
 
-	err := pg.db.QueryRow(query, id).Scan(&article.ID, &article.Title, &article.Image, &article.AuthorId, &article.CreatedAt, &article.Updatedat)
+	err := pg.db.QueryRow(query, id).Scan(&article.ID, &article.Title, &article.Image, &article.AuthorId, &article.CreatedAt, &article.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -129,7 +132,7 @@ func (pg *PostgresArticleStore) UpdateArticle(article *Article) error {
 
 	query := `
 	UPDATE articles
-	SET title = $1, desctiption = $2, image = $3, author_id = $4,updated_at = NOW()
+	SET title = $1, description = $2, image = $3, author_id = $4,updated_at = NOW()
 	WHERE id = $5`
 
 	result, err := tx.Exec(query, article.Title, article.Description, article.Image, article.AuthorId, article.ID)

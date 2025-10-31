@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 
-CREATE TABLE paragraphs IF NOT EXISTS {
+CREATE TABLE IF NOT EXISTS paragraphs(
     id BIGSERIAL PRIMARY KEY,
     headline VARCHAR(255) NOT NULL,
     body TEXT,
@@ -9,7 +9,7 @@ CREATE TABLE paragraphs IF NOT EXISTS {
     article_id BIGINT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-}
+)
 -- +goose StatementEnd
 
 -- +goose Down

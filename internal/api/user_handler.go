@@ -56,7 +56,7 @@ func (uh *UserHandler) HandleCreateUser(w http.ResponseWriter, r *http.Request) 
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": createdUser})
 }
 
-func (uh *UserHandler) HandelUpdateUser(w http.ResponseWriter, r *http.Request) {
+func (uh *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	userID, err := utils.ReadIDParam(r)
 	if err != nil {
 		uh.logger.Printf("Error reading user ID: %v", err)
@@ -76,28 +76,24 @@ func (uh *UserHandler) HandelUpdateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	
 	var updatedUserRequest struct {
-		FirstName    *string `json:"firsname"`
-		LastName     *string `json:"lastname"`
+		Username     *string `json:"username"`
 		Email        *string `json:"email"`
 		PasswordHash *string `json:"password_hash"`
+		Bio          *string `json:"bio"`
 	}
 
 	err = json.NewDecoder(r.Body).Decode(&updatedUserRequest)
 	if err != nil {
-		uh.logger.Printf("error while decoding user: %v", err)
+		uh.logger.Printf("Error decoding update request: %v", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
 		return
 	}
 
-	if updatedUserRequest.FirstName != nil {
-		existingUser.FirstName = *updatedUserRequest.FirstName
-	}
-	if updatedUserRequest.LastName != nil {
-		existingUser.LastName = *updatedUserRequest.LastName
-	}
-	if updatedUserRequest.FirstName != nil {
-		existingUser.FirstName = *updatedUserRequest.FirstName
+	
+	if updatedUserRequest.Username != nil {
+		existingUser.Username = *updatedUserRequest.Username
 	}
 	if updatedUserRequest.Email != nil {
 		existingUser.Email = *updatedUserRequest.Email
@@ -105,7 +101,11 @@ func (uh *UserHandler) HandelUpdateUser(w http.ResponseWriter, r *http.Request) 
 	if updatedUserRequest.PasswordHash != nil {
 		existingUser.PasswordHash = *updatedUserRequest.PasswordHash
 	}
+	if updatedUserRequest.Bio != nil {
+		existingUser.Bio = *updatedUserRequest.Bio
+	}
 
+	
 	err = uh.userStore.UpdateUser(existingUser)
 	if err != nil {
 		uh.logger.Printf("Error updating user: %v", err)
@@ -115,6 +115,7 @@ func (uh *UserHandler) HandelUpdateUser(w http.ResponseWriter, r *http.Request) 
 
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"user": existingUser})
 }
+
 
 func (uh *UserHandler) HandleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	userID, err := utils.ReadIDParam(r)

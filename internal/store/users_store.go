@@ -8,10 +8,10 @@ import (
 
 type User struct {
 	ID           int       `json:"id"`
+	Username     string    `json:"username"`
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"password_hash"`
-	FirstName    string    `json:"firstname"`
-	LastName     string    `json:"lastname"`
+	Bio          string    `json:"bio"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -31,7 +31,7 @@ type UserStore interface {
 	DeleteUser(id int64) error
 }
 
-func (pg *PostgresArticleStore) CreateUser(user *User) (*User, error) {
+func (pg *PostgresUserStore) CreateUser(user *User) (*User, error) {
 	tx, err := pg.db.Begin()
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -40,11 +40,11 @@ func (pg *PostgresArticleStore) CreateUser(user *User) (*User, error) {
 	defer tx.Rollback()
 
 	query := `
-	INSERT INTO users(email, password_hash, firstname, lastname, created_at, updated_at)
+	INSERT INTO users(username,email, password_hash,bio, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, NOW(), NOW())
 	RETURNING id;`
 
-	err = tx.QueryRow(query, user.Email, user.PasswordHash, user.FirstName, user.LastName).Scan(&user.ID)
+	err = tx.QueryRow(query, user.Username,user.Email, user.PasswordHash, user.Bio).Scan(&user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -60,36 +60,54 @@ func (pg *PostgresArticleStore) CreateUser(user *User) (*User, error) {
 func (pg *PostgresUserStore) GetUserById(id int64) (*User, error) {
 	user := &User{}
 	query := `
-	SELECT id, email, password_hash,firstname,lastname, created_at, updated_at
+	SELECT id, username, email, password_hash, bio, created_at, updated_at
 	FROM users 
-	WHERE id = $1;`
+	WHERE id = $1;
+	`
 
 	row := pg.db.QueryRow(query, id)
-	err := row.Scan(&user.ID, &user, user.Email, &user.PasswordHash, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt)
+	err := row.Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Bio,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-
 	if err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-func (pg *PostgresArticleStore) UpdateUser(user *User) error {
+func (pg *PostgresUserStore) UpdateUser(user *User) error {
 	tx, err := pg.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	query := `
-	UPDATE users SET email = $1, password_hash = $2, firstname = $3, lastname= $4,updated_at = NOW()
-	WHERE id = $5`
 
-	result, err := tx.Exec(query, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.ID)
+	query := `
+	UPDATE users 
+	SET username = $1, email = $2, password_hash = $3, bio = $4, updated_at = NOW()
+	WHERE id = $5;
+	`
+
+	result, err := tx.Exec(query,
+		user.Username,
+		user.Email,
+		user.PasswordHash,
+		user.Bio,
+		user.ID,
+	)
 	if err != nil {
 		return err
 	}
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
@@ -99,17 +117,17 @@ func (pg *PostgresArticleStore) UpdateUser(user *User) error {
 		return fmt.Errorf("user with ID %d not found", user.ID)
 	}
 
-	err = tx.Commit()
-	if err != nil {
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (pg *PostgresArticleStore) DeleteUser(id int64) error {
+
+func (pg *PostgresUserStore) DeleteUser(id int64) error {
 	query := `
 	DELETE FROM users WHERE id = $1;`
-	
+
 	result, err := pg.db.Exec(query, id)
 	if err != nil {
 		return err

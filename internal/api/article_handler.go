@@ -125,7 +125,7 @@ func (ah *ArticleHandler) HandleUpdateArticleById(w http.ResponseWriter, r *http
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"article": existingArticle})
 }
 
-func (ah *ArticleHandler) HandleDeleteWorkoutbyId(w http.ResponseWriter, r *http.Request) {
+func (ah *ArticleHandler) HandleDeleteArticlebyId(w http.ResponseWriter, r *http.Request) {
 	articleID, err := utils.ReadIDParam(r)
 	if err != nil {
 		ah.logger.Printf("ERROR: readIdParam: %v", err)
@@ -151,4 +151,5 @@ func (ah *ArticleHandler) HandleDeleteWorkoutbyId(w http.ResponseWriter, r *http
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "failed to delete article"})
 		return
 	}
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "article deleted succesfully"})
 }

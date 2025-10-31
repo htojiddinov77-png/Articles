@@ -1,0 +1,42 @@
+1.6
+curl -X POST http://localhost:8080/articles \
+-H "Content-Type: application/json" \
+-d '{
+  "title": "My First Article",
+  "description": "Learning Go HTTP handlers",
+  "image": "https://example.com/img.png",
+  "author_id": 1,
+  "paragraphs": [
+    {
+      "headline": "Introduction",
+      "body": "This is the first section",
+      "order_index": 1
+    },
+    {
+      "headline": "Conclusion",
+      "body": "This is the last section",
+      "order_index": 2
+    }
+  ]
+}'
+
+Get Articly by Id 
+curl http://localhost:8080/articles/1
+
+Update Article by Id 
+curl -X PUT http://localhost:8080/articles/1 \
+-H "Content-Type: application/json" \
+-d '{
+  "title": "Updated Title",
+  "description": "I just updated this article",
+  "paragraphs": [
+    {
+      "headline": "Updated Section",
+      "body": "This is updated content",
+      "order_index": 1
+    }
+  ]
+}'
+
+Delete Article by Id 
+curl -X DELETE http://localhost:8080/articles/1

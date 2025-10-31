@@ -23,7 +23,7 @@ func main() {
 	r := routes.SetupRoutes(app)
 
 	server := &http.Server{
-		Addr: fmt.Sprintf("%d", port),
+		Addr: fmt.Sprintf(":%d", port),
 		Handler: r,
 		IdleTimeout: time.Minute,
 		ReadTimeout: 10 * time.Second,
