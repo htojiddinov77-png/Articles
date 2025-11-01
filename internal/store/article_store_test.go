@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,32 +8,22 @@ import (
 )
 
 
-func setupTestDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("pgx", "host=localhost user=postgres password=postgres dbname=postgres port=5433 sslmode=disable")
-	if err != nil {
-		t.Fatalf("opening test db: %v", err)
-	}
-
-
-	err = Migrate(db, "../..migrations/")
-	if err != nil {
-		t.Fatalf("migrations test db error: %v", err)
-	}
-
-	_, err = db.Exec("TRUNCATE articles, paragraphs CASCADE")
-	if err != nil{
-		t.Fatalf("truncation tables %v", err)
-	}
-
-	return db
-}
-
 func TestCreate(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
 	store :=NewPosgresArticleStore(db)
+	userStore := NewPostgresUserStore(db)
+	createdUser, err := userStore.CreateUser(&User{
+		Email:        "c2KQw@example.com",
+		PasswordHash: "hashed_password",
+		Username:    "JohnDoe",
+	  })
+	  require.NoError(t, err)
+	  require.NotNil(t, createdUser)
+	
 
+	  
 	tests := []struct {
 		name string
 		article *Article
@@ -46,7 +35,7 @@ func TestCreate(t *testing.T) {
 				Title: "How to test your code",
 				Description: "A simple tutorial for beginners",
 				Image: "https://example.com/go",
-				AuthorId: 1,
+				AuthorId: createdUser.ID,
 				Paragraphs: []Paragraph{
 					{
 						Headline: "Introduction",
@@ -68,7 +57,7 @@ func TestCreate(t *testing.T) {
 				Title: "Invalid Author",
 				Description: "Should fail because author_id doesn't exist",
 				Image: "https://example.com/invalid",
-				AuthorId: 9999,
+				AuthorId: createdUser.ID,
 				Paragraphs: []Paragraph{
 					{
 						Headline: "Test Headline",

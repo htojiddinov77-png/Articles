@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"testing"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -9,29 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupUserDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("pgx", "host=localhost user=postgres password=postgres dbname=postgres port=5433 sslmode=disable")
-	if err != nil {
-		t.Fatalf("opening test db: %v", err)
-	}
 
-	// run migrations for test db
-	err = Migrate(db, "../../migrations/")
-	if err != nil {
-		t.Fatalf("migrations test db error: %v", err)
-	}
-
-	// clean up old data
-	_, err = db.Exec("TRUNCATE users CASCADE")
-	if err != nil {
-		t.Fatalf("truncation tables %v", err)
-	}
-
-	return db
-}
 
 func TestCreateUser(t *testing.T) {
-	db := setupUserDB(t)
+	db := setupTestDB(t)
 	defer db.Close()
 
 	store := NewPostgresUserStore(db)
@@ -47,7 +27,7 @@ func TestCreateUser(t *testing.T) {
 				Username:     "Noah",
 				Email:        "Noah_Faris@example.com",
 				PasswordHash: "hash_12345",
-				Bio:          "Backend developer from Tashkent who loves Go and coffee ☕️",
+				Bio:          "Backend developer from Tashkent who loves Go and coffee",
 			},
 			wantErr: false,
 		},
@@ -57,7 +37,7 @@ func TestCreateUser(t *testing.T) {
 				Username:     "muhammad_rasul",
 				Email:        "muhammad.rasul@example.com",
 				PasswordHash: "secure_as!2kge",
-				Bio:          "Tech enthusiast and aspiring software engineer 🚀",
+				Bio:          "Tech enthusiast software engineer ",
 			},
 			wantErr: false,
 		},

@@ -112,7 +112,7 @@ func (ah *ArticleHandler) HandleUpdateArticleById(w http.ResponseWriter, r *http
 	}
 
 	if UpdateArticleRequest.Paragraphs != nil {
-		existingArticle.Paragraphs = *&UpdateArticleRequest.Paragraphs
+		existingArticle.Paragraphs = UpdateArticleRequest.Paragraphs
 	}
 
 	err = ah.articleStore.UpdateArticle(existingArticle)
