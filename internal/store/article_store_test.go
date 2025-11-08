@@ -12,15 +12,15 @@ func TestCreate(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	store :=NewPosgresArticleStore(db)
+	store := NewPostgresArticleStore(db)
 	userStore := NewPostgresUserStore(db)
 	createdUser, err := userStore.CreateUser(&User{
 		Email:        "c2KQw@example.com",
 		PasswordHash: "hashed_password",
 		Username:    "JohnDoe",
 	  })
-	  require.NoError(t, err)
-	  require.NotNil(t, createdUser)
+	  require.NoError(t, err) // t orqali testing packagega kiradi // err chiqmasligini tekshiradi
+	  require.NotNil(t, createdUser)	// user create bo'lganini tekshiradi
 	
 
 	  
@@ -57,7 +57,7 @@ func TestCreate(t *testing.T) {
 				Title: "Invalid Author",
 				Description: "Should fail because author_id doesn't exist",
 				Image: "https://example.com/invalid",
-				AuthorId: createdUser.ID,
+				AuthorId: 9999,
 				Paragraphs: []Paragraph{
 					{
 						Headline: "Test Headline",
@@ -70,8 +70,8 @@ func TestCreate(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tt := range tests { //
+		t.Run(tt.name, func(t *testing.T) { // har bir test xolatini alohidadan check qilish uchun
 			createdArticle, err := store.CreateArticle(tt.article)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -84,7 +84,7 @@ func TestCreate(t *testing.T) {
 			assert.Equal(t, tt.article.Paragraphs, createdArticle.Paragraphs)
 
 			retrieved, err := store.GetArticleById(int64(createdArticle.ID))
-			require.NoError(t, err)
+			require.NoError(t, err) // agar db dan articleni olish muammo bo'lsa, test to'xtaydi
 
 			assert.Equal(t, createdArticle.ID, retrieved.ID)
 			assert.Equal(t, len(tt.article.Paragraphs), len(retrieved.Paragraphs))

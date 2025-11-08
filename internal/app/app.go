@@ -32,7 +32,7 @@ func NewApplication() (*Application, error) {
 
 	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
-	articleStore := store.NewPosgresArticleStore(pgDB)
+	articleStore := store.NewPostgresArticleStore(pgDB)
 	userStore := store.NewPostgresUserStore(pgDB)
 
 	articleHandler := api.NewArticleHandler(articleStore, logger)

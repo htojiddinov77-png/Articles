@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"strings"
 )
 
 type User struct {
@@ -32,30 +33,32 @@ type UserStore interface {
 }
 
 func (pg *PostgresUserStore) CreateUser(user *User) (*User, error) {
-	tx, err := pg.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
+    if strings.TrimSpace(user.Username) == "" {
+        return nil, fmt.Errorf("username cannot be empty")
+    }
+    if strings.TrimSpace(user.Email) == "" {
+        return nil, fmt.Errorf("email cannot be empty")
+    }
 
-	defer tx.Rollback()
+    tx, err := pg.db.Begin()
+    if err != nil {
+        return nil, fmt.Errorf("failed to begin transaction: %w", err)
+    }
+    defer tx.Rollback()
 
-	query := `
-	INSERT INTO users(username,email, password_hash,bio, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, NOW(), NOW())
-	RETURNING id;`
+    query := `
+    INSERT INTO users (username, email, password_hash, bio, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, NOW(), NOW())
+    RETURNING id;
+    `
+    err = tx.QueryRow(query, user.Username, user.Email, user.PasswordHash, user.Bio).Scan(&user.ID)
+    if err != nil {
+        return nil, err
+    }
 
-	err = tx.QueryRow(query, user.Username,user.Email, user.PasswordHash, user.Bio).Scan(&user.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
+    return user, tx.Commit()
 }
+
 
 func (pg *PostgresUserStore) GetUserById(id int64) (*User, error) {
 	user := &User{}

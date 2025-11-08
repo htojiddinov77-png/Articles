@@ -29,7 +29,7 @@ type PostgresArticleStore struct {
 	db *sql.DB
 }
 
-func NewPosgresArticleStore(db *sql.DB) *PostgresArticleStore {
+func NewPostgresArticleStore(db *sql.DB) *PostgresArticleStore {
 	return &PostgresArticleStore{db: db}
 }
 
@@ -82,7 +82,7 @@ func (pg *PostgresArticleStore) GetArticleById(id int64) (*Article, error) {
 	SELECT id, title, description,image, author_id,created_at, updated_at
 	FROM articles WHERE id = $1`
 
-	err := pg.db.QueryRow(query, id).Scan(&article.ID, &article.Title, &article.Image, &article.AuthorId, &article.CreatedAt, &article.UpdatedAt)
+	err := pg.db.QueryRow(query, id).Scan(&article.ID, &article.Title, &article.Description, &article.Image, &article.AuthorId, &article.CreatedAt, &article.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
