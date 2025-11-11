@@ -32,34 +32,31 @@ type ReviewStore interface {
 }
 
 func (pg *PostgresReviewStore) CreateReview(review *Review) (*Review, error) {
-	tx, err := pg.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction %v", err)
-	}
-	tx.Rollback()
-
 	query := `
 	INSERT INTO reviews(user_id, article_id, review_text, rating, created_at, updated_at)
-	VALUES($1, $2, $3, $4 NOW(), NOW())
-	RETURNING id;`
+	VALUES($1, $2, $3, $4, NOW(), NOW())
+	RETURNING id, created_at, updated_at;`
 
-	err = tx.QueryRow(query, review.UserId, review.ArticleId, review.ReviewText, review.Rating).Scan(&review.ID)
+	err := pg.db.QueryRow(query, review.UserId, review.ArticleId, review.ReviewText, review.Rating).Scan(&review.ID, &review.CreatedAt, &review.UpdatedAt)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create review: %v", err)
 	}
-	
-	return review, tx.Commit()
+
+	return review, nil
 }
 
 func (pg *PostgresReviewStore) GetReviewById(id int64) (*Review, error) {
 	review := &Review{}
 	query := `
-	SELECT * from reviews
-	WHERE id = $;`
+	SELECT user_id, article_id, review_text, rating, created_at, updated_at
+	FROM reviews
+	WHERE id = $1;`
 
 	row := pg.db.QueryRow(query, id)
 	err := row.Scan(
 		&review.ID,
+		&review.UserId,
+		&review.ArticleId,
 		&review.ReviewText,
 		&review.Rating,
 		&review.CreatedAt,
@@ -75,17 +72,11 @@ func (pg *PostgresReviewStore) GetReviewById(id int64) (*Review, error) {
 }
 
 func (pg *PostgresReviewStore) UpdateReview(review *Review) error {
-	tx, err := pg.db.Begin()
-	if err != nil {
-		return nil
-	}
-	tx.Rollback()
-
 	query := `UPDATE reviews
 	SET review_text = $1, rating = $2, updated_at = NOW()
 	WHERE id = $3`
 
-	result, err := tx.Exec(query, review.ReviewText, review.Rating, review.ID)
+	result, err := pg.db.Exec(query, review.ReviewText, review.Rating, review.ID)
 	if err != nil {
 		return err
 	}
@@ -97,10 +88,6 @@ func (pg *PostgresReviewStore) UpdateReview(review *Review) error {
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("review with ID %d not found", review.ID)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return err
 	}
 
 	return nil

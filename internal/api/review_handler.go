@@ -29,6 +29,10 @@ func (rh *ReviewHandler) HandleCreateReview(w http.ResponseWriter, r *http.Reque
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid request sent"})
 		return
 	}
+	if review.Rating < 1 || review.Rating > 5 {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "rating must be between 1 and 5"})
+		return
+	}
 
 	createdReview, err := rh.reviewStore.CreateReview(&review)
 	if err != nil {
