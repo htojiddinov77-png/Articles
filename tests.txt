@@ -1,42 +1,40 @@
-1.6
+curl -X POST http://localhost:8080/users \
+-H "Content-Type: application/json" \
+-d '{
+  "email": "testuser@example.com",
+  "password": "secret123",
+  "firstname": "John",
+  "lastname": "Doe"
+}'
+
+
 curl -X POST http://localhost:8080/articles \
 -H "Content-Type: application/json" \
 -d '{
-  "title": "My First Article",
-  "description": "Learning Go HTTP handlers",
-  "image": "https://example.com/img.png",
-  "author_id": 1,
+  "title": "How to Learn Go",
+  "description": "A beginner-friendly tutorial about Golang.",
+  "image": "https://example.com/golang.png",
+  "author_id": 30,
   "paragraphs": [
     {
       "headline": "Introduction",
-      "body": "This is the first section",
+      "body": "Go is a modern language by Google.",
       "order_index": 1
     },
     {
-      "headline": "Conclusion",
-      "body": "This is the last section",
+      "headline": "Why Learn Go",
+      "body": "Because it is fast, simple, and concurrent.",
       "order_index": 2
     }
   ]
 }'
 
-Get Articly by Id 
-curl http://localhost:8080/articles/1
 
-Update Article by Id 
-curl -X PUT http://localhost:8080/articles/1 \
+curl -X POST http://localhost:8080/reviews \
 -H "Content-Type: application/json" \
 -d '{
-  "title": "Updated Title",
-  "description": "I just updated this article",
-  "paragraphs": [
-    {
-      "headline": "Updated Section",
-      "body": "This is updated content",
-      "order_index": 1
-    }
-  ]
+  "user_id": 30,
+  "article_id": 1,
+  "review_text": "Excellent article!",
+  "rating": 5
 }'
-
-Delete Article by Id 
-curl -X DELETE http://localhost:8080/articles/1

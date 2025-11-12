@@ -62,7 +62,7 @@ func (pg *PostgresReviewStore) GetReviewById(id int64) (*Review, error) {
 		&review.CreatedAt,
 		&review.UpdatedAt,
 	)
-	if err == sql.ErrNoRows {
+	if err == sql.ErrNoRows{
 		return nil, nil
 	}
 	if err != nil {

@@ -29,6 +29,11 @@ func (rh *ReviewHandler) HandleCreateReview(w http.ResponseWriter, r *http.Reque
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid request sent"})
 		return
 	}
+
+	if review.ArticleId <=0 {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid article id"})
+	}
+
 	if review.Rating < 1 || review.Rating > 5 {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "rating must be between 1 and 5"})
 		return
@@ -58,13 +63,17 @@ func (rh *ReviewHandler) HandleGetReviewByid(w http.ResponseWriter, r *http.Requ
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "internal server error"})
 		return
 	}
+	if review == nil {
+		http.NotFound(w, r)
+		return
+	}
 
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"review": review})
 }
 
 func (rh *ReviewHandler) HandleUpdateReviewById(w http.ResponseWriter, r *http.Request) {
 	reviewId, err := utils.ReadIDParam(r)
-	if err != nil {
+	if err != nil{
 		rh.logger.Printf("Error reading review ID: %v", err)
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid review ID"})
 		return
@@ -81,6 +90,7 @@ func (rh *ReviewHandler) HandleUpdateReviewById(w http.ResponseWriter, r *http.R
 		http.NotFound(w, r)
 		return
 	}
+
 
 	var UpdatedReviewRequest struct {
 		ReviewText *string `json:"review_text"`
@@ -99,8 +109,13 @@ func (rh *ReviewHandler) HandleUpdateReviewById(w http.ResponseWriter, r *http.R
 	}
 
 	if UpdatedReviewRequest.Rating != nil {
-		existingReview.Rating = *UpdatedReviewRequest.Rating
-	}
+    if *UpdatedReviewRequest.Rating < 1 || *UpdatedReviewRequest.Rating > 5 {
+        utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "rating must be between 1 and 5"})
+        return
+    }
+    existingReview.Rating = *UpdatedReviewRequest.Rating
+}
+
 
 	err = rh.reviewStore.UpdateReview(existingReview)
 	if err != nil {
@@ -123,7 +138,7 @@ func (rh *ReviewHandler) HandleDeleteReview(w http.ResponseWriter, r *http.Reque
 	err = rh.reviewStore.DeleteReview(reviewID)
 	if err != nil {
 		rh.logger.Printf("Error deleting review: %v", err)
-		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		utils.WriteJSON(w, http.StatusNoContent, utils.Envelope{"error": "error deleting review"})
 		return
 	}
 
