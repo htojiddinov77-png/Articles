@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -93,6 +94,8 @@ func (pg *PostgresReviewStore) UpdateReview(review *Review) error {
 	return nil
 }
 
+var ErrReviewNotfound = errors.New("review not found")
+
 func (pg *PostgresReviewStore) DeleteReview(id int64) error {
 	query := `
 	DELETE FROM reviews WHERE id = $1;`
@@ -108,7 +111,7 @@ func (pg *PostgresReviewStore) DeleteReview(id int64) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("Review with ID %d not found", id)
+		return ErrReviewNotfound
 	}
 	return nil
 }

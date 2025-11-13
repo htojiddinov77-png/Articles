@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -11,6 +13,7 @@ import (
 
 type ReviewHandler struct {
 	reviewStore store.ReviewStore
+	articleStore store.ArticleStore
 	logger      *log.Logger
 }
 
@@ -30,12 +33,18 @@ func (rh *ReviewHandler) HandleCreateReview(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if review.ArticleId <=0 {
-		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid article id"})
-	}
-
 	if review.Rating < 1 || review.Rating > 5 {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "rating must be between 1 and 5"})
+		return
+	}
+	existingArticle, err := rh.articleStore.GetArticleById(int64(review.ArticleId))
+	if err != nil {
+		rh.logger.Printf("ERROR: getting article: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "failed to verify article"})
+		return
+	}
+	if existingArticle == nil {
+		utils.WriteJSON(w, http.StatusNotFound, utils.Envelope{"error": "article not found"})
 		return
 	}
 
@@ -92,30 +101,39 @@ func (rh *ReviewHandler) HandleUpdateReviewById(w http.ResponseWriter, r *http.R
 	}
 
 
-	var UpdatedReviewRequest struct {
+	type UpdatedReviewRequest struct {
 		ReviewText *string `json:"review_text"`
 		Rating     *int    `json:"rating"`
 	}
 
-	err = json.NewDecoder(r.Body).Decode(&UpdatedReviewRequest)
-	if err != nil {
-		rh.logger.Printf("Error decoding update request: %v", err)
+	validate := func(req *UpdatedReviewRequest) error {
+		if req.Rating != nil {
+			if *req.Rating < 1 || *req.Rating > 5 {
+				return fmt.Errorf("rating must be between 1 and 5")
+			}
+		}
+		return nil
+	}
+	var req UpdatedReviewRequest 
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { // Decode is checking rating integer
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
 		return
 	}
-
-	if UpdatedReviewRequest.ReviewText != nil {
-		existingReview.ReviewText = *UpdatedReviewRequest.ReviewText
+	err = validate(&req)
+	if err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
+		return
+	}
+	
+	if req.ReviewText != nil {
+		existingReview.ReviewText = *req.ReviewText
+	}
+	
+	if req.Rating != nil {
+		existingReview.Rating = *req.Rating
 	}
 
-	if UpdatedReviewRequest.Rating != nil {
-    if *UpdatedReviewRequest.Rating < 1 || *UpdatedReviewRequest.Rating > 5 {
-        utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "rating must be between 1 and 5"})
-        return
-    }
-    existingReview.Rating = *UpdatedReviewRequest.Rating
-}
-
+	
 
 	err = rh.reviewStore.UpdateReview(existingReview)
 	if err != nil {
@@ -137,9 +155,14 @@ func (rh *ReviewHandler) HandleDeleteReview(w http.ResponseWriter, r *http.Reque
 
 	err = rh.reviewStore.DeleteReview(reviewID)
 	if err != nil {
+		if errors.Is(err, store.ErrReviewNotfound) {
+			utils.WriteJSON(w, http.StatusNotFound, utils.Envelope{"error": "Review not found"})
+			return
+		}
+
 		rh.logger.Printf("Error deleting review: %v", err)
-		utils.WriteJSON(w, http.StatusNoContent, utils.Envelope{"error": "error deleting review"})
-		return
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "internal server error"})
+		
 	}
 
 	utils.WriteJSON(w, http.StatusNoContent, nil)
