@@ -1,40 +1,47 @@
+3.1:
 curl -X POST http://localhost:8080/users \
--H "Content-Type: application/json" \
--d '{
-  "email": "testuser@example.com",
-  "password": "secret123",
-  "firstname": "John",
-  "lastname": "Doe"
+     -H "Content-Type: application/json" \
+     -d '{
+           "username": "john_doe",
+           "email": "john.doe@example.com",
+           "password": "securepassword123",
+           "bio": "Fitness enthusiast and software developer"
+         }'
+
+
+3.2:
+curl -X POST http://localhost:8080/users \
+     -H "Content-Type: application/json" \
+     -d '{
+           "username": "jack_doe",
+           "email": "jack.doe@example.com",
+           "password": "securepassword123",
+           "bio": "Fitness enthusiast and software developer"
+         }'
+
+
+curl -X POST http://localhost:8080/tokens/authentication \
+     -H "Content-Type: application/json" \
+     -d '{
+    "username": "jack_doe",
+    "password": "securepassword123"
 }'
 
 
-curl -X POST http://localhost:8080/articles \
--H "Content-Type: application/json" \
--d '{
-  "title": "How to Learn Go",
-  "description": "A beginner-friendly tutorial about Golang.",
-  "image": "https://example.com/golang.png",
-  "author_id": 30,
-  "paragraphs": [
-    {
-      "headline": "Introduction",
-      "body": "Go is a modern language by Google.",
-      "order_index": 1
-    },
-    {
-      "headline": "Why Learn Go",
-      "body": "Because it is fast, simple, and concurrent.",
-      "order_index": 2
-    }
-  ]
-}'
 
+3.5:
+curl -X POST "http://localhost:8080/users" \
+     -H "Content-Type: application/json" \
+     -d '{
+          "username": "melkey",
+          "email": "melkey@example.com",
+          "password": "SecureP@ssword123",
+          "bio": "Fitness enthusiast and software developer"
+        }'
 
-curl -X POST http://localhost:8080/reviews \
--H "Content-Type: application/json" \
--d '{
-  "user_id": 30,
-  "article_id": 1,
-  "review_text": "Excellent article!",
-  "rating": 5
-}'
+curl -X POST "http://localhost:8080/tokens/authentication" \
+     -H "Content-Type: application/json" \
+     -d '{
+          "username": "johndoe",
+          "password": "SecureP@ssword123"
+        }'

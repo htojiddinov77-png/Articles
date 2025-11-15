@@ -15,7 +15,6 @@ func TestCreate(t *testing.T) {
 	userStore := NewPostgresUserStore(db)
 	createdUser, err := userStore.CreateUser(&User{
 		Email:        "c2KQw@example.com",
-		PasswordHash: "hashed_password",
 		Username:     "JohnDoe",
 	})
 	require.NoError(t, err)        // t orqali testing packagega kiradi // err chiqmasligini tekshiradi

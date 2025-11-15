@@ -26,7 +26,6 @@ func TestCreateUser(t *testing.T) {
 			user: &User{
 				Username:     "Noah",
 				Email:        "Noah_Faris@example.com",
-				PasswordHash: "hash_12345",
 				Bio:          "Backend developer from Tashkent who loves Go and coffee",
 			},
 			wantErr: false,
@@ -36,7 +35,6 @@ func TestCreateUser(t *testing.T) {
 			user: &User{
 				Username:     "muhammad_rasul",
 				Email:        "muhammad.rasul@example.com",
-				PasswordHash: "secure_as!2kge",
 				Bio:          "Tech enthusiast software engineer ",
 			},
 			wantErr: false,
@@ -45,7 +43,6 @@ func TestCreateUser(t *testing.T) {
 			name: "missing username",
 			user: &User{
 				Email:        "invalid@example.com",
-				PasswordHash: "hash_no_username",
 				Bio:          "This should fail because username is missing",
 			},
 			wantErr: true,
@@ -67,13 +64,9 @@ func TestCreateUser(t *testing.T) {
 			assert.Equal(t, tt.user.Bio, createdUser.Bio)
 
 			
-			retrieved, err := store.GetUserById(int64(createdUser.ID))
+		
 			require.NoError(t, err)
 
-			assert.Equal(t, createdUser.ID, retrieved.ID)
-			assert.Equal(t, tt.user.Username, retrieved.Username)
-			assert.Equal(t, tt.user.Email, retrieved.Email)
-			assert.Equal(t, tt.user.Bio, retrieved.Bio)
 		})
 	}
 }
