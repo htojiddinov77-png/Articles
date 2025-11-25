@@ -17,8 +17,10 @@ func NewPostgresTokenStore(db *sql.DB) *PostgresTokenStore{
 
 type TokenStore interface {
 	Insert(token *tokens.Token) error
+	GetTokenByHash(hash []byte) (*tokens.Token, error)
 	CreateNewToken(userId int, ttl time.Duration, scope string) (*tokens.Token, error)
 	DeleteAllTokensForUser(userID int, scope string) error
+	DeleteToken(hash []byte) error
 }
 
 func (t *PostgresTokenStore) CreateNewToken(userID int, ttl time.Duration, scope string)(*tokens.Token, error) {
@@ -38,6 +40,42 @@ func (t *PostgresTokenStore) Insert(token *tokens.Token) error{
 	_, err := t.db.Exec(query, token.Hash, token.UserID, token.Expiry, token.Scope)
 	return err
 }
+
+func (t *PostgresTokenStore) GetTokenByHash(hash []byte) (*tokens.Token, error) {
+	token := &tokens.Token{}
+	query := `
+	SELECT user_id, expiry, scope
+	FROM tokens
+	WHERE hash = $1`
+
+	row := t.db.QueryRow(query, hash)
+
+	err := row.Scan(
+		&token.Hash,
+		&token.UserID,
+		&token.Expiry,
+		&token.Scope,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return token, nil
+
+}
+
+func (t *PostgresTokenStore) DeleteToken(hash []byte) error {
+	query := `
+	DELETE FROM tokens
+	WHERE hash = $1`
+	_, err := t.db.Exec(query, hash)
+	return err
+}
+
+
 
 func (t *PostgresTokenStore) DeleteAllTokensForUser (userID int, scope string) error{ 
 	query := `

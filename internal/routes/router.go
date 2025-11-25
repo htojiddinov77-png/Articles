@@ -15,10 +15,16 @@ func SetupRoutes(app *app.Application) *chi.Mux {
 	r.Delete("/articles/{id}", app.ArticleHandler.HandleDeleteArticlebyId)
 
 	// user routes
-	r.Post("/users", app.UserHandler.HandleCreateUser)
+	r.Post("/users/register/", app.UserHandler.HandleRegisterUser)
 	r.Get("/users/{id}", app.UserHandler.HandleGetUserById)
 	r.Put("/users/{id}", app.UserHandler.HandleUpdateUser)
 	r.Delete("/users/{id}", app.UserHandler.HandleDeleteUser)
+
+	// // user password change
+	r.Post("/users/{id}/password-change/", app.UserHandler.HandleChangePassword) // password change
+	r.Post("/users/password-reset-request/{email}/", app.UserHandler.HandlePasswordResetRequest) // password reset requst
+	r.Post("/users/password-reset/{token}/", app.UserHandler.HandlePasswordRequst) 	// password reset
+
 
 
 	r.Post("/reviews", app.ReviewHandler.HandleCreateReview)

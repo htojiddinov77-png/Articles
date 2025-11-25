@@ -9,12 +9,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type password struct {
+type Password struct {
 	plaintText *string
 	hash       []byte
 }
 
-func (p *password) Set(plaintTextPassword string) error {
+func (p *Password) Set(plaintTextPassword string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintTextPassword), 12)
 	if err != nil {
 		return err
@@ -24,7 +24,7 @@ func (p *password) Set(plaintTextPassword string) error {
 	return nil
 }
 
-func (p *password) Matches(plaintTextPassword string) (bool, error) {
+func (p *Password) Matches(plaintTextPassword string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintTextPassword))
 	if err != nil {
 		switch {
@@ -42,7 +42,7 @@ type User struct {
 	ID           int       `json:"id"`
 	Username     string    `json:"username"`
 	Email        string    `json:"email"`
-	PasswordHash password  `json:"-"`
+	PasswordHash Password  `json:"-"`
 	Bio          string    `json:"bio"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -57,11 +57,14 @@ func NewPostgresUserStore(db *sql.DB) *PostgresUserStore {
 }
 
 type UserStore interface {
-	CreateUser(*User) ( error)
+	CreateUser(*User) error
+	GetUserByIdWithPassword(id int64) (*User, error)
+	GetUserByEmail(email string) (*User, error)
 	GetUserById(id int64) (*User, error)
 	GetUserByUsername(username string) (*User, error)
 	UpdateUser(*User) error
 	DeleteUser(id int64) error
+	UpdatePassword(userID int64, p Password) error
 }
 
 func (pg *PostgresUserStore) CreateUser(user *User) error {
@@ -78,9 +81,37 @@ func (pg *PostgresUserStore) CreateUser(user *User) error {
 	return nil
 }
 
+func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
+	user := &User{
+		PasswordHash: Password{},
+	}
+	query := `SELECT id, username, email, bio, created_at, updated_at
+	FROM users
+	WHERE email = $1`
+
+	err := pg.db.QueryRow(query, email).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Bio,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func (pg *PostgresUserStore) GetUserByUsername(username string) (*User, error) {
 	user := &User{
-		PasswordHash: password{},
+		PasswordHash: Password{},
 	}
 	query := `SELECT id, username, email, password_hash, bio, created_at, updated_at
 	FROM users
@@ -107,10 +138,41 @@ func (pg *PostgresUserStore) GetUserByUsername(username string) (*User, error) {
 	return user, nil
 }
 
+func (pg *PostgresUserStore) GetUserByIdWithPassword(id int64) (*User, error) {
+	user := &User{
+		PasswordHash: Password{},
+	}
+	query := `SELECT id, username, email, password_hash, bio, created_at, updated_at
+	FROM users
+	WHERE id = $1`
+
+	err := pg.db.QueryRow(query, id).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash.hash,
+		&user.Bio,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+
+
 func (pg *PostgresUserStore) GetUserById(id int64) (*User, error) {
 	user := &User{}
 	query := `
-	SELECT id, username, email, password_hash, bio, created_at, updated_at
+	SELECT id, username, email, bio, created_at, updated_at
 	FROM users 
 	WHERE id = $1;
 	`
@@ -120,7 +182,6 @@ func (pg *PostgresUserStore) GetUserById(id int64) (*User, error) {
 		&user.ID,
 		&user.Username,
 		&user.Email,
-		&user.PasswordHash,
 		&user.Bio,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -192,3 +253,17 @@ func (pg *PostgresUserStore) DeleteUser(id int64) error {
 	}
 	return nil
 }
+
+func (pg *PostgresUserStore) UpdatePassword(userID int64, p Password) error {
+	query := `
+		UPDATE users
+		SET password_hash = $1,
+		    updated_at = NOW()
+		WHERE id = $2;
+	`
+
+	_, err := pg.db.Exec(query, p.hash, userID)
+	return err
+}
+
+

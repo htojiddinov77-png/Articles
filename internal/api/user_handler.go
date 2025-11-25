@@ -1,15 +1,25 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"regexp"
+	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/htojiddinov77-png/Articles/internal/store"
+	"github.com/htojiddinov77-png/Articles/internal/tokens"
 	"github.com/htojiddinov77-png/Articles/internal/utils"
 )
+
+type ChangePasswordRequest struct {
+	CurrentPassword    string `json:"current_password"`
+	NewPassword        string `json:"new_password"`
+	NewPasswordConfirm string `json:"new_password_confirm"`
+}
 
 type registerUserRequest struct {
 	Username string `json:"username"`
@@ -19,8 +29,9 @@ type registerUserRequest struct {
 }
 
 type UserHandler struct {
-	userStore store.UserStore
-	logger    *log.Logger
+	userStore  store.UserStore
+	tokenStore store.TokenStore
+	logger     *log.Logger
 }
 
 func NewUserHandler(userstore store.UserStore, logger *log.Logger) *UserHandler {
@@ -30,29 +41,204 @@ func NewUserHandler(userstore store.UserStore, logger *log.Logger) *UserHandler 
 	}
 }
 
-func (uh *UserHandler) validateRegisterRequest(req *registerUserRequest) error {
-	if req.Username == "" {
+func (r *ChangePasswordRequest) Validate() error {
+	if r.CurrentPassword == "" {
+		return errors.New("current password is required")
+	}
+
+	if r.NewPassword == "" {
+		return errors.New("new password is required")
+	}
+
+	if r.NewPassword != r.NewPasswordConfirm {
+		return errors.New("new passwords don't match")
+	}
+
+	if r.NewPassword == r.CurrentPassword {
+		return errors.New("new password cannot be the same as the current password")
+	}
+
+	return nil
+}
+
+func (r *registerUserRequest) validateRegisterRequest() error {
+	if r.Username == "" {
 		return errors.New("username is required")
 	}
 
-	if len(req.Username) > 50 {
+	if len(r.Username) > 50 {
 		return errors.New("username cannot be greater than 50 characters")
 	}
 
-	if req.Email == "" {
+	if r.Email == "" {
 		return errors.New("email is required")
 	}
 
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	if !emailRegex.MatchString(req.Email) {
+	if !emailRegex.MatchString(r.Email) {
 		return errors.New("invalid email format")
 	}
 
-	if req.Password == "" {
+	if r.Password == "" {
 		return errors.New("password is required")
 	}
 
 	return nil
+}
+
+func (uh *UserHandler) HandlePasswordResetRequest(w http.ResponseWriter, r *http.Request) {
+	email := chi.URLParam(r, "email")
+	if email == "" {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "email is required"})
+		return
+	}
+
+	user, err := uh.userStore.GetUserByEmail(email)
+	if err != nil {
+		uh.logger.Printf("Error getting user by email: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if user == nil {
+		// need feedback
+		utils.WriteJSON(w, http.StatusNotFound, utils.Envelope{"error": "User not found"})
+		return
+	}
+
+	token, err := uh.tokenStore.CreateNewToken(user.ID, 10*time.Minute, "password-reset")
+	if err != nil {
+		uh.logger.Printf("Error creating  reset token: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"message": "password reset token generated",
+		"token":   token,
+	})
+}
+
+func (uh *UserHandler) HandlePasswordRequst(w http.ResponseWriter, r *http.Request) {
+	// Extract token from URL
+	plainTextToken := chi.URLParam(r, "token")
+	if plainTextToken == "" {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "token is required"})
+		return
+	}
+
+	hash := sha256.Sum256([]byte(plainTextToken))
+	tokenHash := hash[:]
+
+	// Lookup token in db
+	token, err := uh.tokenStore.GetTokenByHash(tokenHash)
+	if err != nil {
+		uh.logger.Printf("Error getting token by hash: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if token == nil || token.Scope != tokens.ScopePasswordReset {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "Invalid or expired token"})
+		return
+	}
+
+	if time.Now().After(token.Expiry) {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "Token expired"})
+		return
+	}
+
+	var req struct {
+		NewPassword     string `json:"new_password"`
+		ConfirmPassword string `json:"confirm_password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid request payload"})
+		return
+	}
+
+	if req.NewPassword == "" || req.NewPassword != req.ConfirmPassword {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "passwords do not match"})
+		return
+	}
+
+	var newPW store.Password
+	
+	if err := newPW.Set(req.NewPassword) ; err != nil {
+		uh.logger.Printf("Error hashing password: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	err = uh.userStore.UpdatePassword(int64(token.UserID), newPW)
+	if err != nil {
+		uh.logger.Printf("Error updating user password: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if err := uh.tokenStore.DeleteToken(token.Hash); err != nil {
+		uh.logger.Printf("Error deleting token: %v", err)
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "password updated successfully"})
+
+}
+
+func (uh *UserHandler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
+	userId, err := utils.ReadIDParam(r)
+	if err != nil {
+		uh.logger.Printf("Error reading user Id: %v", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid user ID"})
+		return
+	}
+
+	var req ChangePasswordRequest
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "invalid request body"})
+		return
+	}
+
+	err = req.Validate()
+	if err != nil {
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
+		return
+	}
+
+	user, err := uh.userStore.GetUserByIdWithPassword(userId)
+	if err != nil {
+		uh.logger.Printf("Error getting user by ID: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	if user == nil {
+		utils.WriteJSON(w, http.StatusNotFound, utils.Envelope{"error": "User not found"})
+		return
+	}
+
+	match, err := user.PasswordHash.Matches(req.CurrentPassword)
+	if err != nil || !match {
+		utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "current password is incorrect"})
+		return
+	}
+
+	var newPW store.Password
+	if err := newPW.Set(req.NewPassword); err != nil {
+		uh.logger.Printf("Error hashing password: %v", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
+		return
+	}
+
+	if err := uh.userStore.UpdatePassword(userId, newPW); err != nil {
+		uh.logger.Printf("Error updating password: %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "password updated successfully"})
 }
 
 func (uh *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -65,18 +251,21 @@ func (uh *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = uh.validateRegisterRequest(&req)
+	err = req.validateRegisterRequest()
 	if err != nil {
 		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": err.Error()})
+		return
+	}
+	existingUser, _ := uh.userStore.GetUserByUsername(req.Username)
+	if existingUser != nil {
+		uh.logger.Printf("ERROR: duplicaste entry: %v", err)
+		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Username email already exists"})
 		return
 	}
 
 	user := &store.User{
 		Username: req.Username,
-		Email: req.Email,
-	}
-	if req.Email != "" {
-		user.Bio = req.Bio
+		Email:    req.Email,
 	}
 
 	err = user.PasswordHash.Set(req.Password)
@@ -87,9 +276,14 @@ func (uh *UserHandler) HandleRegisterUser(w http.ResponseWriter, r *http.Request
 	}
 
 	err = uh.userStore.CreateUser(user)
+	if err != nil {
+		uh.logger.Printf("ERROR: while creating user %v", err)
+		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "internal server error"})
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": user})
 }
-
-
 
 func (uh *UserHandler) HandleGetUserById(w http.ResponseWriter, r *http.Request) {
 	userID, err := utils.ReadIDParam(r)
@@ -105,25 +299,6 @@ func (uh *UserHandler) HandleGetUserById(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"user": user})
-}
-
-func (uh *UserHandler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
-	var user store.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		uh.logger.Printf("Error while decoding: %v", err)
-		utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
-		return
-	}
-
-	createdUser, err := uh.userStore.CreateUser(&user)
-	if err != nil {
-		uh.logger.Printf("Error creating user: %v", err)
-		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
-		return
-	}
-
-	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"user": createdUser})
 }
 
 func (uh *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -166,9 +341,7 @@ func (uh *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) 
 	if updatedUserRequest.Email != nil {
 		existingUser.Email = *updatedUserRequest.Email
 	}
-	// if updatedUserRequest.PasswordHash != nil {
-	// 	existingUser.PasswordHash = *updatedUserRequest.PasswordHash
-	// }
+
 	if updatedUserRequest.Bio != nil {
 		existingUser.Bio = *updatedUserRequest.Bio
 	}
