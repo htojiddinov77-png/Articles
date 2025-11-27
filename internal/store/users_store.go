@@ -9,12 +9,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Password struct {
+type password struct {
 	plaintText *string
 	hash       []byte
 }
 
-func (p *Password) Set(plaintTextPassword string) error {
+func (p *password) Set(plaintTextPassword string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintTextPassword), 12)
 	if err != nil {
 		return err
@@ -24,7 +24,7 @@ func (p *Password) Set(plaintTextPassword string) error {
 	return nil
 }
 
-func (p *Password) Matches(plaintTextPassword string) (bool, error) {
+func (p *password) Matches(plaintTextPassword string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintTextPassword))
 	if err != nil {
 		switch {
@@ -42,7 +42,7 @@ type User struct {
 	ID           int       `json:"id"`
 	Username     string    `json:"username"`
 	Email        string    `json:"email"`
-	PasswordHash Password  `json:"-"`
+	PasswordHash password  `json:"-"`
 	Bio          string    `json:"bio"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -58,13 +58,11 @@ func NewPostgresUserStore(db *sql.DB) *PostgresUserStore {
 
 type UserStore interface {
 	CreateUser(*User) error
-	GetUserByIdWithPassword(id int64) (*User, error)
 	GetUserByEmail(email string) (*User, error)
 	GetUserById(id int64) (*User, error)
 	GetUserByUsername(username string) (*User, error)
 	UpdateUser(*User) error
 	DeleteUser(id int64) error
-	UpdatePassword(userID int64, p Password) error
 }
 
 func (pg *PostgresUserStore) CreateUser(user *User) error {
@@ -83,7 +81,7 @@ func (pg *PostgresUserStore) CreateUser(user *User) error {
 
 func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
 	user := &User{
-		PasswordHash: Password{},
+		PasswordHash: password{},
 	}
 	query := `SELECT id, username, email, bio, created_at, updated_at
 	FROM users
@@ -98,10 +96,10 @@ func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
 		&user.UpdatedAt,
 	)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
-
+	
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +109,7 @@ func (pg *PostgresUserStore) GetUserByEmail(email string) (*User, error) {
 
 func (pg *PostgresUserStore) GetUserByUsername(username string) (*User, error) {
 	user := &User{
-		PasswordHash: Password{},
+		PasswordHash: password{},
 	}
 	query := `SELECT id, username, email, password_hash, bio, created_at, updated_at
 	FROM users
@@ -138,41 +136,14 @@ func (pg *PostgresUserStore) GetUserByUsername(username string) (*User, error) {
 	return user, nil
 }
 
-func (pg *PostgresUserStore) GetUserByIdWithPassword(id int64) (*User, error) {
-	user := &User{
-		PasswordHash: Password{},
-	}
-	query := `SELECT id, username, email, password_hash, bio, created_at, updated_at
-	FROM users
-	WHERE id = $1`
 
-	err := pg.db.QueryRow(query, id).Scan(
-		&user.ID,
-		&user.Username,
-		&user.Email,
-		&user.PasswordHash.hash,
-		&user.Bio,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return user, nil
-}
 
 
 
 func (pg *PostgresUserStore) GetUserById(id int64) (*User, error) {
 	user := &User{}
 	query := `
-	SELECT id, username, email, bio, created_at, updated_at
+	SELECT id, username, password_hash, email, bio, created_at, updated_at
 	FROM users 
 	WHERE id = $1;
 	`
@@ -181,6 +152,7 @@ func (pg *PostgresUserStore) GetUserById(id int64) (*User, error) {
 	err := row.Scan(
 		&user.ID,
 		&user.Username,
+		&user.PasswordHash.hash,
 		&user.Email,
 		&user.Bio,
 		&user.CreatedAt,
@@ -211,7 +183,7 @@ func (pg *PostgresUserStore) UpdateUser(user *User) error {
 	result, err := tx.Exec(query,
 		user.Username,
 		user.Email,
-		user.PasswordHash,
+		user.PasswordHash.hash,
 		user.Bio,
 		user.ID,
 	)
@@ -254,16 +226,6 @@ func (pg *PostgresUserStore) DeleteUser(id int64) error {
 	return nil
 }
 
-func (pg *PostgresUserStore) UpdatePassword(userID int64, p Password) error {
-	query := `
-		UPDATE users
-		SET password_hash = $1,
-		    updated_at = NOW()
-		WHERE id = $2;
-	`
 
-	_, err := pg.db.Exec(query, p.hash, userID)
-	return err
-}
 
 

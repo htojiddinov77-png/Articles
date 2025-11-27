@@ -40,7 +40,7 @@ func NewApplication() (*Application, error) {
 	reviewStore := store.NewPostgresReviewStore(pgDB)
 
 	articleHandler := api.NewArticleHandler(articleStore, logger)
-	userHandler := api.NewUserHandler(userStore, logger)
+	userHandler := api.NewUserHandler(userStore, tokenStore, logger)
 	reviewHandler := api.NewReviewHandler(reviewStore, logger)
 	tokenHandler := api.NewTokenHandler(tokenStore, userStore, logger)
 

@@ -12,6 +12,7 @@ import (
 
 
 func main() {
+	
 	var port int 
 	flag.IntVar(&port, "port", 8080, "go backend server port")
 	flag.Parse()
@@ -35,4 +36,7 @@ func main() {
 	if err != nil{
 		app.Logger.Fatal(err)
 	}
+}
+func init() {
+    time.Local = time.UTC
 }
