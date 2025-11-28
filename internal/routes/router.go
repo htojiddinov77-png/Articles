@@ -24,7 +24,7 @@ func SetupRoutes(app *app.Application) *chi.Mux {
 	// // user password change
 	r.Post("/users/{id}/password-change/", app.UserHandler.HandleChangePassword) // password change
 	r.Post("/users/password-reset-request", app.UserHandler.HandlePasswordResetRequest) // password reset requst
-	r.Post("/users/password-reset/{token}", app.UserHandler.HandlePasswordRequst) 	// password reset
+	r.Post("/users/password-reset/{token}", app.UserHandler.HandlePasswordReset) 	// password reset
 
 
 

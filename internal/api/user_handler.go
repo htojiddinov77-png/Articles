@@ -75,8 +75,6 @@ func (r *registerUserRequest) validateRegisterRequest() error {
 		return errors.New("email is required")
 	}
 
-	
-
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(r.Email) {
 		return errors.New("invalid email format")
@@ -131,7 +129,7 @@ func (uh *UserHandler) HandlePasswordResetRequest(w http.ResponseWriter, r *http
 	})
 }
 
-func (uh *UserHandler) HandlePasswordRequst(w http.ResponseWriter, r *http.Request) {
+func (uh *UserHandler) HandlePasswordReset(w http.ResponseWriter, r *http.Request) {
 	// Extract token from URL
 	plainTextToken := chi.URLParam(r, "token")
 	if plainTextToken == "" {
@@ -241,6 +239,11 @@ func (uh *UserHandler) HandleChangePassword(w http.ResponseWriter, r *http.Reque
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
 		return
 	}
+
+	if oldUserPassword == nil {
+		utils.WriteJSON(w, http.StatusNotFound, utils.Envelope{"error": "User not found"})
+	}
+	
 
 	passwordsDomatch, err := oldUserPassword.PasswordHash.Matches(req.CurrentPassword)
 	if err != nil {
