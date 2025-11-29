@@ -48,6 +48,8 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+var AnonymousUser = &User{}
+
 type PostgresUserStore struct {
 	db *sql.DB
 }

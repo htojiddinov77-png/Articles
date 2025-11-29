@@ -404,11 +404,10 @@ func (uh *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		
-		
 		existingUser.Username = *updatedUserRequest.Username
 	}
 	if updatedUserRequest.Email != nil {
-		if *updatedUserRequest.Email == ""{
+		if strings.TrimSpace(*updatedUserRequest.Email) == ""{
 			utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
 			return
 		}
