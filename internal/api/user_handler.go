@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -242,6 +243,7 @@ func (uh *UserHandler) HandleChangePassword(w http.ResponseWriter, r *http.Reque
 
 	if oldUserPassword == nil {
 		utils.WriteJSON(w, http.StatusNotFound, utils.Envelope{"error": "User not found"})
+		return
 	}
 	
 
@@ -381,16 +383,48 @@ func (uh *UserHandler) HandleUpdateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	
+
 
 	if updatedUserRequest.Username != nil {
+
+		if strings.TrimSpace(*updatedUserRequest.Username) == "" {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Username cannot be empty"})
+			return
+		}
+
+		userByUsername, err := uh.userStore.GetUserByUsername(*updatedUserRequest.Username)
+		if err != nil {
+			uh.logger.Println("Error checking username:", err)
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+			return
+		}
+		
+		if userByUsername != nil && userByUsername.ID != existingUser.ID {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Username is already exists"})
+			return
+		}
+		
+		
 		existingUser.Username = *updatedUserRequest.Username
 	}
 	if updatedUserRequest.Email != nil {
-		if *updatedUserRequest.Email == "" || *updatedUserRequest.Username == "" {
+		if *updatedUserRequest.Email == ""{
 			utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Invalid request payload"})
 			return
 		}
+
+		userByEmail, err := uh.userStore.GetUserByEmail(*updatedUserRequest.Email)
+		if err != nil {
+			uh.logger.Println("Error getting username: ", err)
+			utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "Internal server error"})
+			return
+		}
+
+		if userByEmail != nil && userByEmail.ID != existingUser.ID {
+			utils.WriteJSON(w, http.StatusBadRequest, utils.Envelope{"error": "Email is already exists"})
+			return
+		}
+		
 		existingUser.Email = *updatedUserRequest.Email
 	}
 

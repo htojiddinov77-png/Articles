@@ -49,7 +49,7 @@ func (pg *PostgresReviewStore) CreateReview(review *Review) (*Review, error) {
 func (pg *PostgresReviewStore) GetReviewById(id int64) (*Review, error) {
 	review := &Review{}
 	query := `
-	SELECT user_id, article_id, review_text, rating, created_at, updated_at
+	SELECT id, user_id, article_id, review_text, rating, created_at, updated_at
 	FROM reviews
 	WHERE id = $1;`
 

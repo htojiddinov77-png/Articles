@@ -17,9 +17,10 @@ type ReviewHandler struct {
 	logger      *log.Logger
 }
 
-func NewReviewHandler(reviewstore store.ReviewStore, logger *log.Logger) *ReviewHandler {
+func NewReviewHandler(reviewstore store.ReviewStore, articlestore store.ArticleStore, logger *log.Logger) *ReviewHandler {
 	return &ReviewHandler{
 		reviewStore: reviewstore,
+		articleStore: articlestore,
 		logger:      logger,
 	}
 }
@@ -162,7 +163,7 @@ func (rh *ReviewHandler) HandleDeleteReview(w http.ResponseWriter, r *http.Reque
 
 		rh.logger.Printf("Error deleting review: %v", err)
 		utils.WriteJSON(w, http.StatusInternalServerError, utils.Envelope{"error": "internal server error"})
-		
+		return	
 	}
 
 	utils.WriteJSON(w, http.StatusNoContent, nil)

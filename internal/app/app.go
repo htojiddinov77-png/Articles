@@ -41,7 +41,7 @@ func NewApplication() (*Application, error) {
 
 	articleHandler := api.NewArticleHandler(articleStore, logger)
 	userHandler := api.NewUserHandler(userStore, tokenStore, logger)
-	reviewHandler := api.NewReviewHandler(reviewStore, logger)
+	reviewHandler := api.NewReviewHandler(reviewStore, articleStore, logger)
 	tokenHandler := api.NewTokenHandler(tokenStore, userStore, logger)
 
 	app := &Application{

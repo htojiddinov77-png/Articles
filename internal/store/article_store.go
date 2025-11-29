@@ -58,17 +58,17 @@ func (pg *PostgresArticleStore) CreateArticle(article *Article) (*Article, error
 		return nil, err
 	}
 
-	for _, paragraph := range article.Paragraphs {
-		query :=
-			`INSERT INTO paragraphs(article_id, headline, body,order_index)
-		VALUES($1, $2, $3, $4)
-		RETURNING id`
-
-		err = tx.QueryRow(query, article.ID, paragraph.Headline, paragraph.Body, paragraph.OrderIndex).Scan(&paragraph.ID)
-		if err != nil {
-			return nil, err
-		}
+	for i := range article.Paragraphs {
+		err = tx.QueryRow(query,
+			article.ID,
+			article.Paragraphs[i].Headline,
+			article.Paragraphs[i].Body,
+			article.Paragraphs[i].OrderIndex,
+		).Scan(&article.Paragraphs[i].ID)
 	}
+	
+
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err

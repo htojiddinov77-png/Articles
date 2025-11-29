@@ -56,6 +56,11 @@ func (ah *ArticleHandler) HandlerCreateArticle(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if createdArticle == nil {
+		http.NotFound(w, r)
+		return
+	}
+
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"article": createdArticle})
 }
 
