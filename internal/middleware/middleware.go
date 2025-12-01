@@ -15,11 +15,12 @@ type UserMiddleware struct {
 	UserStore store.UserStore
 }
 
-type contextKey string
+type contextKey string // this is for avoiding collision
 
 const UserContextKey = contextKey("user")
 
 func SetUser(r *http.Request, user *store.User) *http.Request {
+	//ctx, key, value
 	ctx := context.WithValue(r.Context(), UserContextKey, user)
 	return r.WithContext(ctx)
 }
@@ -70,7 +71,7 @@ func (um *UserMiddleware) RequireUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := GetUser(r)
 		if user.IsAnonymous(){
-			utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "you must be logged int to access this route"})
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "you must be logged in"})
 			return 
 		}
 
