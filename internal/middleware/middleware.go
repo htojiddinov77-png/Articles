@@ -1,53 +1,80 @@
 package middleware
 
-// import (
-// 	"context"
-// 	"net/http"
-// 	"strings"
+import (
+	"context"
+	"net/http"
+	"strings"
 
-// 	"github.com/htojiddinov77-png/Articles/internal/store"
-// 	"github.com/htojiddinov77-png/Articles/internal/utils"
-// )
+	"github.com/htojiddinov77-png/Articles/internal/store"
+	"github.com/htojiddinov77-png/Articles/internal/utils"
+	"github.com/htojiddinov77-png/Articles/internal/tokens"
 
-// type UserMiddleware struct {
-// 	UserStore store.UserStore
-// }
+)
 
-// type contextKey string
+type UserMiddleware struct {
+	UserStore store.UserStore
+}
 
-// const UserContextKey = contextKey("user")
+type contextKey string
 
-// func SetUser(r *http.Request, user *store.User) *http.Request {
-// 	ctx := context.WithValue(r.Context(), UserContextKey, user)
-// 	return r.WithContext(ctx)
-// }
+const UserContextKey = contextKey("user")
 
-// func GetUser(r *http.Request) *store.User {
-// 	user, ok := r.Context().Value(UserContextKey).(*store.User)
-// 	if !ok {
-// 		panic("missing user in request")
-// 	}
+func SetUser(r *http.Request, user *store.User) *http.Request {
+	ctx := context.WithValue(r.Context(), UserContextKey, user)
+	return r.WithContext(ctx)
+}
 
-// 	return user
-// }
+func GetUser(r *http.Request) *store.User {
+	user, ok := r.Context().Value(UserContextKey).(*store.User)
+	if !ok {
+		panic("missing user in request")
+	}
+	return user
+}
 
-// func (um *UserMiddleware) Authenticate(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		w.Header().Add("Vary", "Authorization")
-// 		authHeader :=r.Header.Get("Authorization")
-// 		if authHeader == "" {
-// 			r = SetUser(r, store.AnonymousUser)
-// 			next.ServeHTTP(w, r)
-// 			return 
-// 		}
+func (um *UserMiddleware) Authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Authorization")
+		authHeader :=r.Header.Get("Authorization")
+		if authHeader == "" {
+			r = SetUser(r, store.AnonymousUser)
+			next.ServeHTTP(w, r)
+			return 
+		}
 
-// 		headerParts := strings.Split(authHeader, " ") // Beare <TOKEN>
-// 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-// 			utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "Invalid authorization header"})
-// 			return 
-// 		}
+		headerParts := strings.Split(authHeader, " ") // Beare <TOKEN>
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "Invalid authorization header"})
+			return 
+		}
 
-// 		token := headerParts[1]
-// 		user, err := um.UserStore.get
-// 	})
-// }
+		token := headerParts[1]
+		user, err := um.UserStore.GetUserToken(tokens.ScopeAuth, token)
+		if err != nil {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "Invalid token"})
+			return 
+		}
+
+		if user == nil {
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "Invalid token or expired token"})
+			return 
+		}
+
+		r = SetUser(r, user)
+		next.ServeHTTP(w, r)
+		return 
+	})
+}
+
+func (um *UserMiddleware) RequireUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := GetUser(r)
+		if user.IsAnonymous(){
+			utils.WriteJSON(w, http.StatusUnauthorized, utils.Envelope{"error": "you must be logged int to access this route"})
+			return 
+		}
+
+		next.ServeHTTP(w, r)
+		return 
+	})
+}

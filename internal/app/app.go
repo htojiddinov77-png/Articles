@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/htojiddinov77-png/Articles/internal/api"
+	"github.com/htojiddinov77-png/Articles/internal/middleware"
 	"github.com/htojiddinov77-png/Articles/internal/migrations"
 	"github.com/htojiddinov77-png/Articles/internal/store"
 )
@@ -18,6 +19,7 @@ type Application struct {
 	UserHandler    *api.UserHandler
 	ReviewHandler  *api.ReviewHandler
 	TokenHandler   *api.TokenHandler
+	Middleware     middleware.UserMiddleware
 	DB             *sql.DB
 }
 
@@ -39,6 +41,10 @@ func NewApplication() (*Application, error) {
 	userStore := store.NewPostgresUserStore(pgDB)
 	reviewStore := store.NewPostgresReviewStore(pgDB)
 
+	userMiddleware := middleware.UserMiddleware{
+		UserStore: userStore,
+	}
+
 	articleHandler := api.NewArticleHandler(articleStore, logger)
 	userHandler := api.NewUserHandler(userStore, tokenStore, logger)
 	reviewHandler := api.NewReviewHandler(reviewStore, articleStore, logger)
@@ -50,6 +56,7 @@ func NewApplication() (*Application, error) {
 		UserHandler:    userHandler,
 		ReviewHandler:  reviewHandler,
 		TokenHandler:   tokenHandler,
+		Middleware:     userMiddleware,
 		DB:             pgDB,
 	}
 	return app, nil

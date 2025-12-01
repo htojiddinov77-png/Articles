@@ -59,6 +59,11 @@ func (pg *PostgresArticleStore) CreateArticle(article *Article) (*Article, error
 	}
 
 	for i := range article.Paragraphs {
+		query := `
+		INSERT INTO paragraphs (article_id,headline,body,order_index)
+		VALUES($1, $2, $3, $4)
+		RETURNING id;`
+
 		err = tx.QueryRow(query,
 			article.ID,
 			article.Paragraphs[i].Headline,
